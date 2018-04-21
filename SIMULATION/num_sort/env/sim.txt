@@ -1,0 +1,4 @@
+state 5 4 3 2 1
+ptr 0
+flag 0
+know 0
