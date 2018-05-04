@@ -98,25 +98,10 @@ def rew(new_state, state, init_state, action):
     new_list = new_state["state"]
     old_list = state["state"]
     init_list = copy.deepcopy(init_state["state"])
-
-    length = len(old_list) - 2
     
-    value = 0
-    previous = 0
-    for i in range(length):
-        for j in range(i + 1, length):
-            if new_list[i] < new_list[j]:
-                value += 2/(length ** 2 - length)
-            if old_list[i] < old_list[j]:
-                previous += 2/(length ** 2 - length)
-    reward = value - previous
-    
-    penalty = 1
-    for i in range(length):
-        for j in reversed(range(len(init_list) - 1)):
-            if new_list[i] == init_list[j]:
-                del init_list[j]
-                penalty -= 1/(length)
+    reward = 0
+    if action == 8 and new_list == [0,1]:
+        reward = 1
                 
-    return max(reward - penalty, 0)
+    return reward
     
