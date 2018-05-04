@@ -10,15 +10,18 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import os
 
+from icm import ICM
 from taskpolicy import Taskpolicy
 from critic import Critic
 from subpolicy import Subpolicy
+from encoder import Encoder
 
 GRAPH_PATH = "tmp/build/graph"
 
 class Curriculum():
-    def __init__(self, params, tasks, layers, build_graph = GRAPH_PATH):
+    def __init__(self, params, tasks, layers, icm_layers, build_graph = GRAPH_PATH):
         self.params = params
         self.curr_length = 1
         self.tasks = tasks
@@ -27,15 +30,26 @@ class Curriculum():
         
         self.actor_layers = actor_layers
         self.critic_layers = critic_layers
+        self.icm_layers = icm_layers
         
-        self.subpolicy = Subpolicy(params, self.actor_layers)
-        self.critic = Critic(params, self.critic_layers)
-        self.taskpolicy = Taskpolicy(self.subpolicy, self.critic, params)
+        self.encoder = Encoder(params)
+        self.icm = ICM(params, self.icm_layers, self.encoder)
+        self.subpolicy = Subpolicy(params, self.actor_layers, self.encoder)
+        self.critic = Critic(params, self.critic_layers, self.encoder)
+        self.taskpolicy = Taskpolicy(self.subpolicy, self.critic, self.icm, params)
         
         self.session = tf.Session()
         self.session.run(tf.global_variables_initializer())
         if build_graph != None:
             self.writer = tf.summary.FileWriter(build_graph, self.session.graph)
+            
+            with open(str(self.params['iteration']) +'.txt', 'w') as file:
+                for kw in self.params:
+                    arg = self.params[kw]
+                    if type(arg) == "function":
+                        file.write(str(kw) + arg.__name__) # use `json.loads` to do the reverse
+                    else:
+                        file.write(str(kw) + str(arg))
             # constructor
         
     def _sample_length(self, print_rewards = True):

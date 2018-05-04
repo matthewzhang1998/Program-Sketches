@@ -7,10 +7,11 @@ Learning Through Policy Sketches
 
 import tensorflow as tf
 import numpy as np
+import joblib
 from helpers import ff
 
 class Subpolicy():
-    def __init__(self, params, layers):
+    def __init__(self, params, layers, encoder):
         '''
         initialize method for modular subpolicy class
         PARAMS
@@ -24,7 +25,7 @@ class Subpolicy():
         self.params = params
         self.name = "actor"
         
-        widths, activations = layers
+        self.widths, self.activations = layers
         
         # Feed-In Variables
         self.t_returns = tf.placeholder(dtype = tf.float32, shape = (None),
@@ -34,18 +35,20 @@ class Subpolicy():
         self.t_actions = tf.placeholder(dtype = tf.int32, 
                                         shape = (None), name = "actions")
         self.t_states = tf.placeholder(dtype = tf.float32, 
-                        shape = (None, self.params["n_features"]), name = "states")
+                        shape = (None, None, 1), name = "states")
         self.alpha = tf.placeholder(dtype = tf.float32, shape = [], name = "alpha")
         
+        t_states= tf.stop_gradient(encoder.encode(self.t_states))
         # Obtaining Action Probs by FF network
-        t_action_scores = ff(self.t_states, widths, activations, name = self.name)
+        t_action_scores = ff(t_states, self.widths, self.activations, name = self.name)
         t_action_probs = tf.nn.softmax(t_action_scores)
         t_action_logprobs = tf.nn.log_softmax(t_action_scores)
         # Additional terms necessary in loss
         t_chosen_logprobs = -tf.nn.sparse_softmax_cross_entropy_with_logits(
                 logits=t_action_scores, labels=self.t_actions)
         t_entropy = -tf.reduce_mean(tf.reduce_sum(t_action_probs * t_action_logprobs))
-        t_adjusted_rew = -tf.reduce_mean(t_chosen_logprobs * (self.t_returns - self.t_baselines))
+        t_adjusted_rew = -tf.reduce_mean(t_chosen_logprobs *
+                                         (self.t_returns - self.t_baselines))
         
         # Defining loss terms
         self.t_subpolicy_loss = t_adjusted_rew + params["subpolicy_entropy"] * t_entropy
@@ -54,10 +57,29 @@ class Subpolicy():
         self.merged = tf.summary.merge([subpolicy_loss, adjusted_reward])
         self.t_action_probs = t_action_probs
         
+        def save(save_path, sess):
+            for i in range(len(self.widths)):
+                with tf.variable_scope(self.name + str(i)):
+                    params = tf.trainable_variables()
+                    ps = sess.run(params)
+                    joblib.dump(ps, save_path)
+
+        def load(load_path, sess):
+            for i in range(len(self.widths)):
+                with tf.variable_scope(self.name + str(i)):
+                    loaded_params = joblib.load(load_path)
+                    restores = []
+                    params = tf.trainable_variables()
+                    for p, loaded_p in zip(params, loaded_params):
+                        restores.append(p.assign(loaded_p))
+                        sess.run(restores)
+        
         # Optimizer with Gradient Clipping
         optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_op = optimizer.minimize(self.t_subpolicy_loss)
-            
+        self.saver = save
+        self.loader = load
+        
     def _get_action(self, session, state):
         '''
         obtains action based on probability outputs from FF network
@@ -72,7 +94,7 @@ class Subpolicy():
         int
             index of action to be chosen 
         '''
-        state = np.reshape(state, (-1, self.params["n_features"]))
+        state = np.reshape(state, (state.shape[0], state.shape[1], 1))
         feed = {self.t_states: state}
         action_probs = session.run(self.t_action_probs, feed)
                      
@@ -95,9 +117,10 @@ class Subpolicy():
         self.name = "actor" + sketch
         for curr_state, action, returns, baseline, subname in transitions:
             if subname == self.name:
-                transitions = [(curr_state, action, returns, baseline)]
+                temp_transitions = [(curr_state, action, returns, baseline)]
         
-        t_states, t_actions, t_returns, t_baselines = zip(*transitions)
+        t_states, t_actions, t_returns, t_baselines = zip(*temp_transitions)
+        t_states = np.reshape(t_states, (len(t_states), -1, 1))
         feed = {self.t_returns: t_returns, self.t_states: t_states,
                 self.t_actions: t_actions, self.t_baselines: t_baselines,
                 self.alpha: alpha}
