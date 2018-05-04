@@ -19,7 +19,7 @@ FILE_PATH = "./SIMULATION"
 TASKS, max_task_length, n_actions = get_all_tasks(FILE_PATH)
 os.chdir(OLD_PATH)
 
-iteration = 40
+iteration = 41
 
 GRAPH_PATH = "tmp/build/iteration" + str(iteration)
 
@@ -27,7 +27,7 @@ PARAMS = {'iteration': iteration, 'alpha_subpolicy': 0.001,
           'alpha_superpolicy':0.0001, 'alpha_critic': 0.001, 'alpha_ICM':0.001,
           'gamma':0.9, 'n_hidden_size':64, 'n_hidden_layers':3, 
           'actor_activation':tf.nn.relu, 'encoder_cell': tf.contrib.rnn.LSTMCell,
-          'critic_activation':tf.nn.relu, 'max_plot':10000, 'beta_ICM':0.2,
+          'critic_activation':tf.nn.sigmoid, 'max_plot':10000, 'beta_ICM':0.2,
           'n_ICM_size':64, 'n_ICM_layers':2,
           'forward_activation': tf.nn.relu, 'backward_activation': tf.nn.relu,
           'n_features':40, 'n_actions':n_actions, 'init_estimate':0.01, 
