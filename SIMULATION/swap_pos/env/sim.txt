@@ -4,4 +4,5 @@ flag 0
 know 0
 stack
 ptr_stack
-gpr 0
+gpr_1 0
+gpr_2 0

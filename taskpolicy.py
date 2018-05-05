@@ -33,8 +33,8 @@ class Taskpolicy():
         
     def _train(self, session, writer, transitions, task):
         t_states, t_returns = zip(*[(transition[0], transition[2]) for transition in transitions])
-        t_baselines, summary = self.critic.evaluate(session, self.name, t_states, t_returns)
-        writer.add_summary(summary, self.general_iterator)
+        t_baselines, critic_summary = self.critic.evaluate(session, self.name, t_states, t_returns)
+        writer.add_summary(critic_summary, self.general_iterator)
         self.general_iterator += 1
 
         for transition, baseline in zip(transitions, t_baselines):
@@ -44,8 +44,8 @@ class Taskpolicy():
             summary = self.subpolicy.train(session, transitions, sketch)
             writer.add_summary(summary, self.actor_iterator)
             self.actor_iterator += 1
-        summary = self.icm.train(session, transitions)
-        writer.add_summary(summary, self.general_iterator)
+        icm_summary = self.icm.train(session, transitions)
+        writer.add_summary(icm_summary, self.general_iterator)
         return transitions
         
     def run(self, session, writer, task):

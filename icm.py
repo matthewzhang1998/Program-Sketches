@@ -26,10 +26,10 @@ class ICM():
         
         t_state_transitions = self._get_transitions(encoder.encode
                                                     (self.t_states))
-        t_states_enc = tf.stop_gradient(encoder.encode(self.t_states))
-        t_state_action_concat = tf.concat([t_states_enc[:-1,:],
-                                           self.t_actions[:-1,]], axis=-1)
-    
+        t_states_enc = encoder.encode(self.t_states)
+        t_state_action_concat = tf.stop_gradient(tf.concat([t_states_enc[:-1,:],
+                                           self.t_actions[:-1,:]], axis=-1))
+                                                        
         t_action_scores = ff(t_state_transitions, self.backward_widths,
                              self.backward_activations, name = "backward_icm")
         t_backward_loss = tf.nn.softmax_cross_entropy_with_logits(
@@ -41,10 +41,10 @@ class ICM():
         
         eta = 1/self.params["n_features"]
         beta = self.params["beta_ICM"]
-        
+        lambd = self.params["lambda"]
         self.internal_reward = eta * t_forward_loss
         
-        self.total_loss = tf.reduce_sum((1-beta) * t_backward_loss + 
+        self.total_loss = 1/lambd * tf.reduce_sum((1-beta) * t_backward_loss + 
                                         beta * t_forward_loss)
         self.summary = tf.summary.scalar("ICM_Loss", self.total_loss)
         optimizer = tf.train.AdamOptimizer(self.alpha)
