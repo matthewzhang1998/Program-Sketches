@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import os
+import errno
 
 from icm import ICM
 from taskpolicy import Taskpolicy
@@ -40,16 +41,25 @@ class Curriculum():
         
         self.session = tf.Session()
         self.session.run(tf.global_variables_initializer())
+        tf.get_default_graph().finalize()
         if build_graph != None:
             self.writer = tf.summary.FileWriter(build_graph, self.session.graph)
             
-            with open(str(self.params['iteration']) +'.txt', 'w') as file:
+            filename = 'PARAMS/' + str(self.params['iteration']) +'.txt'
+            if not os.path.exists(os.path.dirname(filename)):
+                try:
+                    os.makedirs(os.path.dirname(filename))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
+            with open(filename, 'w') as file:
                 for kw in self.params:
                     arg = self.params[kw]
                     if type(arg) == "function":
-                        file.write(str(kw) + arg.__name__) # use `json.loads` to do the reverse
+                        file.write(str(kw) + ' ' + arg.__name__)
                     else:
-                        file.write(str(kw) + str(arg))
+                        file.write(str(kw) + ' ' +  str(arg))
+                    file.write("\n")
             # constructor
         
     def _sample_length(self, print_rewards = True):
@@ -57,11 +67,10 @@ class Curriculum():
         tasks_curr_length = self.tasks[length]
         iterator = 0
         
+        curiosity = self.params["curiosity"]
+        visitation = np.zeros((8, 8))
+        
         if print_rewards:
-            x = []
-            y = []
-            avg_x = []
-            avg_y = []
             plt.ion()
             start_time = time.time()
         
@@ -80,26 +89,29 @@ class Curriculum():
             
             index = softmax_choice(expected_rewards)
             task = tasks_curr_length[index]
-            reward = self.taskpolicy.run(self.session, self.writer, task)
+            
+            reward, visitation = self.taskpolicy.run(self.session, self.writer,
+                                         task, curiosity = curiosity,
+                                         log_vis = True, visitation = visitation)
             chi = self.params["reward_memory"]
             expected_rewards[index] = expected_rewards[index] * chi + reward * (1 - chi) 
             iterator += 1
             
             if print_rewards == True:
-                x.append(iterator)
-                y.append(reward)
-                if iterator % 100 == 0:
-                    now_time = time.time()
-                    print("Iteration: {}, Avg Rew: {}, Time: {}".
-                              format(iterator, sum(y)/len(y), now_time - start_time))
-                    start_time = now_time
-                    avg_x.append([iterator])
-                    avg_y.append(sum(y)/len(y))
-                    x = []
-                    y = []
+                now_time = time.time()
+                print("Iteration: {}, Avg Rew: {}, Time: {}".
+                              format(iterator, reward/self.params["rollout"],
+                                     now_time - start_time))
+                start_time = now_time
 
                 if iterator == self.params["max_plot"]:
-                    plt.scatter(avg_x,avg_y)
+                    visitation = visitation/np.amax(visitation)
+                    vis_fig = plt.gcf()
+                    plt.imshow(visitation, cmap='hot', interpolation='nearest')
+                    plt.show()
+                    vis_fig.savefig('visitation {} {}.png'.format(self.params["iteration"],
+                                    curiosity),
+                                    dpi = 100)
                     break
                           
     def run(self, print_rewards = True):

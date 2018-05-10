@@ -19,21 +19,23 @@ FILE_PATH = "./SIMULATION"
 TASKS, max_task_length, n_actions = get_all_tasks(FILE_PATH)
 os.chdir(OLD_PATH)
 
-iteration = 48
+iteration = 152
 
 GRAPH_PATH = "tmp/build/iteration" + str(iteration)
 
 PARAMS = {'iteration': iteration, 'alpha_subpolicy': 0.001,
-          'alpha_superpolicy':0.0001, 'alpha_critic': 0.001, 'alpha_ICM':0.001,
-          'gamma':0.9, 'n_hidden_size':64, 'n_hidden_layers':3, 
+          'alpha_superpolicy':0.0001, 'alpha_critic': 0.001, 'alpha_ICM':0.01,
+          'gamma':0.9, 'n_hidden_size':32, 'n_hidden_layers':2, 
           'actor_activation':tf.nn.relu, 'encoder_cell': tf.contrib.rnn.LSTMCell,
-          'critic_activation':tf.nn.sigmoid, 'max_plot':10000, 'beta_ICM':0.2,
-          'n_ICM_size':64, 'n_ICM_layers':2,
-          'forward_activation': tf.nn.sigmoid, 'backward_activation': tf.nn.sigmoid,
+          'critic_activation':tf.nn.sigmoid, 'max_plot':50, 'beta_ICM':1,
+          'n_ICM_size':32, 'n_ICM_layers':2, 'eta':5,
+          'forward_activation': tf.nn.sigmoid, 
+          'backward_activation': tf.nn.sigmoid,
           'n_features':32, 'n_actions':n_actions, 'init_estimate':0.01, 
           'reward_threshold':2, 'lambda':0.5,
-          'reward_memory':0.8, 'max_task_length': max_task_length, 
-          'subpolicy_entropy': 0.01}
+          'reward_memory':2, 'max_task_length': max_task_length, 
+          'subpolicy_entropy': 0.0, 'curiosity': True, 'rollout':10,
+          'write_thresh': 1}
 
 n_hidden_size = PARAMS["n_hidden_size"]
 n_hidden_layers = PARAMS["n_hidden_layers"]

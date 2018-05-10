@@ -26,7 +26,7 @@ class Critic():
         t_states_enc = tf.stop_gradient(encoder.encode(self.t_states))
         t_baselines = ff(t_states_enc, widths, activations, name = self.name)
         self.t_baselines = t_baselines
-        self.critic_loss = 1/2 * tf.reduce_sum(tf.square(tf.stop_gradient(self.t_mc_returns) - t_baselines))
+        self.critic_loss = 1/2 * tf.reduce_sum(tf.square(self.t_mc_returns - t_baselines))
         
         self.mc_summary = tf.summary.histogram("MC_Returns", self.t_mc_returns)
         self.baseline_summary = tf.summary.histogram("Baselines", t_baselines)

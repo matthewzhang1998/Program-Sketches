@@ -27,6 +27,7 @@ class ICM():
         t_state_transitions = self._get_transitions(encoder.encode
                                                     (self.t_states))
         t_states_enc = encoder.encode(self.t_states)
+        
         t_state_action_concat = tf.stop_gradient(tf.concat([t_states_enc[:-1,:],
                                            self.t_actions[:-1,:]], axis=-1))
                                                         
@@ -39,14 +40,18 @@ class ICM():
         t_forward_loss = 1/2 * tf.square(tf.norm(
                 t_states_enc[1:] - t_predictions, axis = -1))
         
-        eta = 1/self.params["n_features"]
+        eta = 1/self.params["n_features"] * self.params["eta"]
         beta = self.params["beta_ICM"]
         lambd = self.params["lambda"]
         self.internal_reward = eta * t_forward_loss
         
         self.total_loss = 1/lambd * tf.reduce_sum((1-beta) * t_backward_loss + 
                                         beta * t_forward_loss)
-        self.summary = tf.summary.scalar("ICM_Loss", self.total_loss)
+        forward_loss = tf.summary.scalar("Forward_Loss", 
+                                           tf.reduce_sum(t_forward_loss))
+        backward_loss = tf.summary.scalar("Backward_Loss",
+                                            tf.reduce_sum(t_backward_loss))
+        self.summary = tf.summary.merge([forward_loss, backward_loss])
         optimizer = tf.train.AdamOptimizer(self.alpha)
         self.train_op = optimizer.minimize(self.total_loss)
         
@@ -60,19 +65,20 @@ class ICM():
         t_out[np.arange(length), t_in] = 1
         return t_out
     
-    def run(self, sess, transitions):
-        t_states, t_actions, _, _ = zip(*transitions)
-        t_states = np.reshape(t_states, (len(t_states), -1, 1))
-        t_actions = self._one_hot(t_actions, self.params["n_actions"])
-        feed = {self.t_states: t_states, self.t_actions: t_actions}
-        rewards = sess.run([self.internal_reward], feed)[0]
-        
-        intrinsic_reward = 0
-        gamma = self.params["gamma"]
-        for i, transition in enumerate(reversed(transitions)):
-            if i != 0:    
-                intrinsic_reward = intrinsic_reward * gamma + rewards[-i]
-            transition[2] += intrinsic_reward
+    def run(self, sess, transitions, curiosity = True):
+        if curiosity:
+            t_states, t_actions, _, _ = zip(*transitions)
+            t_states = np.reshape(t_states, (len(t_states), -1, 1))
+            t_actions = self._one_hot(t_actions, self.params["n_actions"])
+            feed = {self.t_states: t_states, self.t_actions: t_actions}
+            rewards = sess.run([self.internal_reward], feed)[0]
+            
+            intrinsic_reward = 0
+            gamma = self.params["gamma"]
+            for i, transition in enumerate(reversed(transitions)):
+                if i != 0:    
+                    intrinsic_reward = gamma * intrinsic_reward + rewards[-i]
+                transition[2] += intrinsic_reward
          
     def train(self, sess, transitions):
         t_states, t_actions, _, _, _ = zip(*transitions)

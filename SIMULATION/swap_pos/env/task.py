@@ -7,7 +7,7 @@ Learning Through Policy Sketches NUM_SORT TASK
 import numpy as np
 import copy
 
-MAX_NUM = 4
+MAX_NUM = 2
 
 def enc(state_dict):
     '''
@@ -25,13 +25,12 @@ def enc(state_dict):
     '''
     state = state_dict["state"]
     state_ptr = state_dict["ptr"]
-    state_flag = state_dict["flag"]
-    state_know = state_dict["know"]
     state_gpr_1 = state_dict["gpr_1"]
     state_gpr_2 = state_dict["gpr_2"]
+    state_comp = state_dict["comp_flag"]
 
     def one_hot_flatten(vector, one_hot_size):
-        one_hot = np.zeros((len(vector), one_hot_size))
+        one_hot = np.zeros((len(vector), one_hot_size + 1))
         one_hot[np.arange(len(vector)), vector] = 1
         return one_hot.flatten()
     
@@ -39,11 +38,13 @@ def enc(state_dict):
         vector = np.reshape(vector, (1, vector.shape[0]))
         return vector
 
-    flatten_state = one_hot_flatten(state, MAX_NUM)
-    flatten_gpr = one_hot_flatten(state_gpr_1, MAX_NUM)
-    flatten_gpr = one_hot_flatten(state_gpr_2, MAX_NUM)
-    flatten_ptr = one_hot_flatten(state_ptr, len(state) - 1)    
-    enc = np.concatenate((flatten_state, flatten_ptr, flatten_gpr, state_flag, state_know))
+    flatten_state = np.array(state).flatten()
+    flatten_gpr_1 = np.array(state_gpr_1).flatten()
+    flatten_gpr_2 = np.array(state_gpr_2).flatten()
+    flatten_ptr = np.array(state_ptr).flatten()
+    flatten_comp = np.array(state_comp).flatten()
+    enc = np.concatenate((flatten_state, flatten_ptr, flatten_gpr_1,
+                          flatten_gpr_2, flatten_comp))
     enc = overlay(enc)
     return enc
 
@@ -54,24 +55,25 @@ def dyn(state_dict, action):
     if action == 0:
         if new_dict["ptr"][0] > 0:
             new_dict["ptr"][0] -= 1
-            new_dict["know"][0] = 0
-            new_dict["flag"][0] = 0
+            #new_dict["know"][0] = 0
+            #new_dict["flag"][0] = 0
         
     # right
     elif action == 1:
-        if new_dict["ptr"][0] < len(new_dict["state"]) - 2:
+        if new_dict["ptr"][0] < len(new_dict["state"]) - 1:
             new_dict["ptr"][0] += 1
-            new_dict["know"][0] = 0
-            new_dict["flag"][0] = 0
+            #new_dict["know"][0] = 0
+            #new_dict["flag"][0] = 0
         
     # compare
     elif action == 2:
-        new_dict["flag"][0] = 0
-        new_dict["know"][0] = 1
-        if len(new_dict["stack"]) > 0:
-            if (new_dict["state"][new_dict["ptr"][0]] > 
-                new_dict["stack"][-1]):
-                new_dict["flag"][0] = 1
+        pass
+#        new_dict["flag"][0] = 0
+#        new_dict["know"][0] = 1
+#        if len(new_dict["stack"]) > 0:
+#            if (new_dict["state"][new_dict["ptr"][0]] > 
+#                new_dict["stack"][-1]):
+#                new_dict["flag"][0] = 1
         
 #    # push/load memory value
 #    elif action == 3:
@@ -107,6 +109,9 @@ def dyn(state_dict, action):
     elif action == 6:
         new_dict["state"][new_dict["ptr"][0]] = new_dict["gpr_2"][0]
     
+    elif action == 7:
+        new_dict["comp_flag"][0] = 1
+    
     return new_dict
         
 def rew(new_state, state, action):
@@ -114,7 +119,7 @@ def rew(new_state, state, action):
     old_list = state["state"]
     
     reward = 0
-    if action == 7 and new_list == [0,1]:
+    if action == 7 and new_list == [1,1]:
         reward = 1
                 
     return reward

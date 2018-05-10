@@ -13,8 +13,7 @@ def _linear(t_in, n_out):
     v_w = tf.get_variable(
             "w",
             shape=(t_in.get_shape()[-1], n_out),
-            initializer=tf.uniform_unit_scaling_initializer(
-                factor=INIT_SCALE))
+            initializer=tf.contrib.layers.xavier_initializer())
     v_b = tf.get_variable(
             "b",
             shape=n_out,

@@ -1,7 +1,6 @@
 state 1 0
 ptr 0
-flag 0
-know 0
+comp_flag 0
 stack
 ptr_stack
 gpr_1 0
